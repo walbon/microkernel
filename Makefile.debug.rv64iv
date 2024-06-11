@@ -1,0 +1,1 @@
+./configure CC=/root/riscv-matrix-extension-spec/demos/gcc/bin/riscv64-unknown-linux-gnu-gcc CFLAGS="-march=rv64gcv_zfh_xtheadc_xtheadmatrix -mabi=lp64d -O0 -g3 -static" --disable-threading rv64iv
