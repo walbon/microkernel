@@ -15,6 +15,8 @@ int main(){
 
     //microkernel usage
     // \alpha * A_{mxk} * B_{kxn} + \beta * C_{mxn}
+    float alpha = 1.0;
+    float beta  = 0.0;
     float* A = (float *) malloc(M*K*sizeof(float));
     float* B = (float *) malloc(K*N*sizeof(float));
     float* C_blas = (float *) calloc(M*N, sizeof(float));
@@ -23,59 +25,73 @@ int main(){
     //data initialization
     srand(42);
     for(int i=0; i<M; i++){
-        for (int j=0; j<N; j++){
-            A[M*i+j] = (float) i+1; //((float)rand() / RAND_MAX) * (rand_max-rand_min) + rand_min;
-            B[N*i+j] = (float) j+1; //((float)rand() / RAND_MAX) * (rand_max-rand_min) + rand_min;
+        for (int j=0; j<K; j++){
+            A[M*i+j] = (float) i+1;
         }
     }
-
-    // //Print A
-    // printf("A:   ");
-    // for(int i=0; i<M*N; i++){
-    //     printf("%.0f ", A[i]);
-    // }
-
-    // //Print B
-    // printf("\n");
-    // printf("B:   ");
-    // for(int i=0; i<M*N; i++){
-    //     printf("%.0f ", B[i]);
-    // }
-
-    float alpha = 1.0;
-    float beta  = 1.0;
-
-    //microkernel usage
-    // for (int i = 0; i < M; i++){
-    //     for (int j = 0; j < N; i++){
-    //         for (int k = 0; k < K; i++){
-    //             C[]
-    //         }
-            
-    //     }
-        
-    // }
-    
+    for(int i=0; i<K; i++){
+        for (int j=0; j<N; j++){
+            B[N*i+j] = (float) j+1;
+        }
+    }
+    for(int i=0; i<M*N; i++){
+            C_naive[i] = 0;
+            C_blas[i] = 0;
+    }
 
     //openblas usage -- sanity check
-	bli_sgemm(  BLIS_NO_TRANSPOSE, BLIS_NO_TRANSPOSE,
-	            M, N, K,
-                 &alpha,
-                A, /*rsa*/ K, /*csa*/ 1,
-                B, /*rsb*/ N, /*csb*/ 1,
-	            &beta,
-                C_blas, /*rsc*/ N, /*csc*/ 1);
+    bli_sgemm( BLIS_NO_TRANSPOSE,
+               BLIS_NO_TRANSPOSE,
+               M, N, K,
+               &alpha,
+               A, /*rsa*/ K, /*csa*/ 1,
+               B, /*rsb*/ N, /*csb*/ 1,
+               &beta,
+               C_blas, /*rsc*/ N, /*csc*/ 1);
 
 
-    printf("\n");
-    double acc = 0.;
-    for(int i=0; i<M; i++){
-        for(int j = 0; j<N; j++){
-            //printf("%.0f ", C_blas[M*i+j]);
+  int i, j, k;
+    for (i=0; i<M; i++) {
+        for (j=0; j<N; j++)
+            C_naive[i*M+j] *= beta;
+
+        for (k=0; k<K; k++) { 
+            for (j=0; j<N; j++)
+                C_naive[i*M+j] += alpha * A[i*M+k] * B[j*N+k];
         }
-        //printf("\n");
     }
-    printf("\nFINISH\n");
 
+  int erro = 0;
+  for (i = 0; i < M; i++) {
+    for (j = 0; j < N; j++) {
+      if (abs(C_blas[i * M + j] - C_naive[i * M + j]) > 1e-6) {
+        printf("Error: [%d][%d] blas %f != %f naive\n", i, j, (float)C_blas[i*N + j], (float)C_naive[i*N+j], i, j);
+        erro += 1;
+      }
+    }
+  }
 
+   /*
+   //Print A
+    printf("A:\n");
+    for(int i=0; i<M/10; i++){
+        printf("A[%d][]: ", i);
+        for(int j=0; j<N/10; j++)
+            printf("%.0f ", A[i*M+j]);
+        printf("\n");
+    }
+    //Print B
+    printf("\n");
+    printf("B:   ");
+    for(int i=0; i<M*N; i++){
+        printf("%.0f ", B[i]);
+    }
+   */
+  if (erro) {
+    printf("Validação da saída C falhou! %i vezes\n", erro);
+    return 1;
+  } else {
+    printf("Validação da saída C bem-sucedida!\n");
+  }
+ 
 }
